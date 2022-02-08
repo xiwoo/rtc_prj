@@ -21,7 +21,12 @@ const wsServer = new Server(httpServer);
 
 wsServer.on("connection", (socket) => {
     // console.log(socket);
-    socket.on("enter_room", (msg, done) => console.log(msg) || done());
+    socket.on("enter_room", (msg, f, s, t, str, done) => {
+        console.log(msg, f, s, t, str);
+        setTimeout(() => {
+            done();
+        }, 10000);
+    });
 });
 
 // const wss = new WebSocket.Server({server});
