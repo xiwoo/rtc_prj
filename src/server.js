@@ -20,13 +20,25 @@ const httpServer = http.createServer(app);
 const wsServer = new Server(httpServer);
 
 wsServer.on("connection", (socket) => {
-    // console.log(socket);
-    socket.on("enter_room", (msg, f, s, t, str, done) => {
-        console.log(msg, f, s, t, str);
-        setTimeout(() => {
-            done();
-        }, 10000);
+
+    socket.onAny((event) => {//모든 이벤트 이전에 동작
+        console.log(`Socket Event:${event}`);
     });
+
+    socket.on("enter_room", (roomName, done) => {
+        socket.join(roomName);
+        done();
+        socket.to(roomName).emit("welcome");
+    });
+
+    socket.on("disconnecting", () => {
+        socket.rooms.forEach((room) => socket.to(room).emit("bye"));
+    });
+
+    socket.on("new_message", (msg, room, done) => {
+        socket.to(room).emit("new_message", msg);
+        done();
+    })
 });
 
 // const wss = new WebSocket.Server({server});
