@@ -39,7 +39,7 @@ wsServer.on("connection", (socket) => {
         socket.to(room).emit("new_message", msg);
         done();
     })
-});
+}); 
 
 // const wss = new WebSocket.Server({server});
 // const wss = new WebSocket.Server();//websocket만 사용할 때
