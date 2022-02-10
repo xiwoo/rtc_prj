@@ -27,7 +27,7 @@ wsServer.on("connection", (socket) => {
             done();
         }, 10000);
     });
-});
+}); 
 
 // const wss = new WebSocket.Server({server});
 // const wss = new WebSocket.Server();//websocket만 사용할 때
