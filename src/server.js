@@ -18,7 +18,7 @@ const wsServer = new Server(httpServer);
 
 function publicRooms() {
     const {
-        socket: {
+        sockets: {
             adapter: {sids, rooms}
         },
     } = wsServer;
@@ -42,10 +42,18 @@ wsServer.on("connection", (socket) => {
         socket.join(roomName);
         done();
         socket.to(roomName).emit("welcome", socket.nickname);
+        wsServer.sockets.emit("room_change", publicRooms());
     });
 
     socket.on("disconnecting", () => {
         socket.rooms.forEach((room) => socket.to(room).emit("bye", socket.nickname));
+        // wsServer.sockets.emit("room_change", publicRooms());
+        //여기서 동작하면 아직 room연결이 끊어지는 도중이라 room이 존재 한다고 나온다.
+        //정확하게 연결이 끊어진 이후 알림이 가게 하려면 -> disconnect 이벤트로 구현하자
+    });
+
+    socket.on("disconnect", () => {
+        wsServer.sockets.emit("room_change", publicRooms());
     });
 
     socket.on("new_message", (msg, room, done) => {
@@ -55,8 +63,6 @@ wsServer.on("connection", (socket) => {
 
     socket.on("nickname", (nickname) => {
         socket["nickname"] = nickname;
-        // socket.to(room).emit("new_message", msg);
-        // done();
     });
 }); 
 
