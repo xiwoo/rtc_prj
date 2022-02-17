@@ -7,13 +7,14 @@ const cameraBtn = document.getElementById("camera");
 const cameraSelect = document.getElementById("cameras");
 const call = document.getElementById("call");
 
-let roomName;
 
 call.hidden = true;
 
 let myStream;
 let muted = false;
 let cameraOff = false;
+let roomName;
+let myPeerConnection;
 
 async function getCameras() {
     try {
@@ -99,6 +100,8 @@ async function handleCameraChange() {
     await getMedia(cameraSelect.value);
 }
 
+
+
 muteBtn.addEventListener("click", handleMuteClick);
 cameraBtn.addEventListener("click", handleCameraClick);
 cameraSelect.addEventListener("click", handleCameraChange);
@@ -108,16 +111,18 @@ cameraSelect.addEventListener("click", handleCameraChange);
 const welcome = document.getElementById("welcome");
 const welcomeForm = welcome.querySelector("form");
 
-function startMedia() {
+async function initCall() {
     welcome.hidden = true;
     call.hidden = false;
-    getMedia();
+    await getMedia();
+    makeConnection();
 }
 
-function handleWelcomeSubmit(event) {
+async function handleWelcomeSubmit(event) {
     event.preventDefault();
     const input = welcomeForm.querySelector("input");
-    socket.emit("join_room", input.value, startMedia);
+    await initCall()
+    socket.emit("join_room", input.value);
     roomName = input.value
     input.value = "";
 }
@@ -126,6 +131,30 @@ welcomeForm.addEventListener("submit", handleWelcomeSubmit);
 
 //Socket Code
 
-socket.on("welcome", () => {
+socket.on("welcome", async () => {
     console.log("someone join!");
+    const offer = await myPeerConnection.createOffer();
+    //offer는 RTC를 위한 현재 자신의 브라우저 정보(다른 유저에게 초대장이 될)
+    myPeerConnection.setLocalDescription(offer);
+    socket.emit("offer", offer, roomName);
 });
+
+socket.on("offer", async (offer) => {
+    myPeerConnection.setRemoteDescription(offer);
+    const answer = await myPeerConnection.createAnswer();
+    myPeerConnection.setLocalDescription(answer);
+    socket.emit("answer", answer, roomName);
+});
+
+socket.on("answer", answer => {
+    myPeerConnection.setRemoteDescription(answer);
+});
+
+//RTC Code
+
+function makeConnection() {
+    myPeerConnection = new RTCPeerConnection();
+    myStream.getTracks()
+        .forEach(track => myPeerConnection.addTrack(track, myStream));
+    console.log();
+}
