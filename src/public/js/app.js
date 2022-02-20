@@ -20,7 +20,7 @@ async function getCameras() {
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(device => device.kind === 'videoinput');
-        console.log(devices);
+        // console.log(devices);
         const currentCamera = myStream.getVideoTracks()[0];
         cameras.forEach(camera => {
             const option = document.createElement("option");
@@ -69,14 +69,8 @@ function handleMuteClick() {
             return track.enabled = !track.enabled;
         });
 
-        muteBtn.innerText = muted ? "Mute" : "Unmute";
-        muted = !muted;
-    // if(!muted) {
-    // }
-    // else {
-    //     muteBtn.innerText = "Mute";
-    //     muted = false;
-    // }
+    muteBtn.innerText = muted ? "Mute" : "Unmute";
+    muted = !muted;
 }
 
 function handleCameraClick() {
@@ -98,6 +92,14 @@ function handleCameraClick() {
 
 async function handleCameraChange() {
     await getMedia(cameraSelect.value);
+    if(myPeerConnection) {
+        //상단 getMedia에서 myStream을 변경해줬기 때문에 아래 getVideoTracks에서 변경된 track 가져오기 가능
+        const videoTrack = myStream.getVideoTracks()[0];
+        const videoSender = myPeerConnection.getSenders()
+            .find(sender => sender.track.kind === 'video');
+        console.log(videoSender);
+        videoSender.replaceTrack(videoTrack);
+    }
 }
 
 
@@ -150,11 +152,49 @@ socket.on("answer", answer => {
     myPeerConnection.setRemoteDescription(answer);
 });
 
+socket.on("ice", ice => {
+    myPeerConnection.addIceCandidate(ice);
+});
+
 //RTC Code
 
 function makeConnection() {
-    myPeerConnection = new RTCPeerConnection();
+    myPeerConnection = new RTCPeerConnection({//test용 stun서버
+        iceServers: [
+            {
+                urls: [
+                    "stun:stun.l.google.com:19302",
+                    "stun:stun1.l.google.com:19302",
+                    "stun:stun2.l.google.com:19302",
+                    "stun:stun3.l.google.com:19302",
+                    "stun:stun4.l.google.com:19302",
+                ]
+            }
+        ]
+    });
+    const channel = myPeerConnection.createDataChannel('chat');
+    channel.onopen = function(event) {
+        console.log(event);
+        channel.send("Hi you!");
+    }
+    channel.onmessage = function(event) {
+        console.log(event.data);
+    }
+
+    myPeerConnection.addEventListener("icecandidate", handleIce);
+    myPeerConnection.addEventListener("addstream", handleAddStream);
     myStream.getTracks()
         .forEach(track => myPeerConnection.addTrack(track, myStream));
     console.log();
+}
+
+function handleIce(data) {
+    console.log(data);
+    socket.emit("ice", data.candidate, roomName);
+}
+
+function handleAddStream(data) {
+
+    const peerFace = document.getElementById("peerFace");
+    peerFace.srcObject = data.stream;
 }
