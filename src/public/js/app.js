@@ -15,6 +15,9 @@ let muted = false;
 let cameraOff = false;
 let roomName;
 let myPeerConnection;
+//host가 되는 쪽은 offer생성하는 곳(현재 welcome이벤트)에서 생성
+//guest는 answer를 생성하는 곳(현재 offer이벤트)에서 생성
+let myDataChannel;
 
 async function getCameras() {
     try {
@@ -134,7 +137,10 @@ welcomeForm.addEventListener("submit", handleWelcomeSubmit);
 //Socket Code
 
 socket.on("welcome", async () => {
-    console.log("someone join!");
+    //dataChannel 사용 시 offer하는 쪽이 채널 생성 주체가 된다.
+    myDataChannel = myPeerConnection.createDataChannel("chat");
+    myDataChannel.addEventListener("message", console.log);
+    console.log("made data channel");
     const offer = await myPeerConnection.createOffer();
     //offer는 RTC를 위한 현재 자신의 브라우저 정보(다른 유저에게 초대장이 될)
     myPeerConnection.setLocalDescription(offer);
@@ -142,6 +148,11 @@ socket.on("welcome", async () => {
 });
 
 socket.on("offer", async (offer) => {
+    //datachannel 받는 쪽에서 rtc로 채널 받는 예약된 이벤트
+    myPeerConnection.addEventListener("datachannel", event => {
+        myDataChannel = event.channel;
+        myDataChannel.addEventListener("message", console.log);
+    });
     myPeerConnection.setRemoteDescription(offer);
     const answer = await myPeerConnection.createAnswer();
     myPeerConnection.setLocalDescription(answer);
@@ -172,7 +183,7 @@ function makeConnection() {
             }
         ]
     });
-    const channel = myPeerConnection.createDataChannel('chat');
+    // const channel = myPeerConnection.createDataChannel('chat');
     channel.onopen = function(event) {
         console.log(event);
         channel.send("Hi you!");
